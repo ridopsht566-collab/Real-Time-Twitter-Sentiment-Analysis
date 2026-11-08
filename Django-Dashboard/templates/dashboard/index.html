@@ -1,0 +1,301 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %} Real-Time Twitter Sentiment Dashboard {% endblock title %}
+
+{% block links %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+{% endblock links %}
+
+{% block content %}
+
+<!-- Header / Status Bar -->
+<div class="page-title-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <div>
+        <h1 class="page-title" style="font-size: 24px; font-weight: 800; color: #fff; letter-spacing: -0.5px;">Dashboard Overview</h1>
+        <p class="page-subtitle" style="color: var(--text-secondary); font-size: 14px; margin-top: 4px;">Real-time Twitter streaming ingestion via Kafka, PySpark, & MongoDB</p>
+    </div>
+    <div style="display: flex; gap: 12px; align-items: center;">
+        <a href="{% url 'export_excel' %}" class="nav-link" style="background: linear-gradient(135deg, #10b981, #059669); border: none; color: #fff; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; text-decoration: none; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+            <i class="fa-solid fa-file-excel"></i> <span>Export Excel</span>
+        </a>
+        <button id="autoRefreshBtn" onclick="toggleAutoRefresh()" class="nav-link" style="background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); cursor: pointer; color: #fff; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-arrows-rotate fa-spin" id="refreshIcon"></i> <span id="refreshText">Auto-Refresh (ON)</span>
+        </button>
+    </div>
+</div>
+
+{% if len_data != 0 %}
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+    <div class="kpi-card kpi-total">
+        <div class="kpi-header">
+            <span class="kpi-label">Total Tweets</span>
+            <div class="kpi-icon"><i class="fa-brands fa-twitter"></i></div>
+        </div>
+        <div class="kpi-value">{{ len_data }}</div>
+        <div class="kpi-sub">Ingested into MongoDB</div>
+    </div>
+
+    <div class="kpi-card kpi-positive">
+        <div class="kpi-header">
+            <span class="kpi-label">Positive</span>
+            <div class="kpi-icon"><i class="fa-solid fa-face-smile"></i></div>
+        </div>
+        <div class="kpi-value">{{ sentiment_counts.Positive|default:0 }}</div>
+        <div class="kpi-sub">{{ sentiment_rates.Positive|default:0 }}% of total stream</div>
+    </div>
+
+    <div class="kpi-card kpi-neutral">
+        <div class="kpi-header">
+            <span class="kpi-label">Neutral</span>
+            <div class="kpi-icon"><i class="fa-solid fa-face-meh"></i></div>
+        </div>
+        <div class="kpi-value">{{ sentiment_counts.Neutral|default:0 }}</div>
+        <div class="kpi-sub">{{ sentiment_rates.Neutral|default:0 }}% of total stream</div>
+    </div>
+
+    <div class="kpi-card kpi-negative">
+        <div class="kpi-header">
+            <span class="kpi-label">Negative</span>
+            <div class="kpi-icon"><i class="fa-solid fa-face-frown"></i></div>
+        </div>
+        <div class="kpi-value">{{ sentiment_counts.Negative|default:0 }}</div>
+        <div class="kpi-sub">{{ sentiment_rates.Negative|default:0 }}% of total stream</div>
+    </div>
+</div>
+
+<!-- Analytics Charts & Statistics -->
+<div class="analytics-grid">
+    <div class="chart-card">
+        <div class="card-title">
+            <i class="fa-solid fa-chart-pie"></i> Sentiment Distribution
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="sentimentDoughnutChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Bar Chart (Diagram Batang) -->
+    <div class="chart-card">
+        <div class="card-title">
+            <i class="fa-solid fa-chart-simple"></i> Sentiment Bar Comparison
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="sentimentBarChart"></canvas>
+        </div>
+    </div>
+
+    <div class="chart-card">
+        <div class="card-title">
+            <i class="fa-solid fa-chart-column"></i> Sentiment Breakdown Rates
+        </div>
+        <div style="display: flex; flex-direction: column; justify-content: center; height: 300px; gap: 20px; padding: 0 10px;">
+            {% for label, rate in sentiment_rates.items %}
+            <div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 600; font-size: 14px;">
+                    <span style="display: flex; align-items: center; gap: 8px;">
+                        {% if label == 'Positive' %}
+                        <i class="fa-solid fa-circle" style="color: var(--positive); font-size: 10px;"></i>
+                        {% elif label == 'Negative' %}
+                        <i class="fa-solid fa-circle" style="color: var(--negative); font-size: 10px;"></i>
+                        {% else %}
+                        <i class="fa-solid fa-circle" style="color: var(--neutral); font-size: 10px;"></i>
+                        {% endif %}
+                        {{ label }}
+                    </span>
+                    <span>{{ rate }}%</span>
+                </div>
+                <div style="width: 100%; height: 10px; background: rgba(255,255,255,0.06); border-radius: 5px; overflow: hidden;">
+                    <div style="height: 100%; width: {{ rate }}%; 
+                        {% if label == 'Positive' %} background: linear-gradient(90deg, #10b981, #34d399);
+                        {% elif label == 'Negative' %} background: linear-gradient(90deg, #ef4444, #f87171);
+                        {% else %} background: linear-gradient(90deg, #6366f1, #818cf8); {% endif %}
+                        border-radius: 5px; transition: width 0.5s ease;">
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Recent Tweets Table -->
+<div class="table-card" id="live-table">
+    <div class="page-title-row" style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+        <div class="card-title" style="margin-bottom: 0;">
+            <i class="fa-solid fa-bolt"></i> Live Ingested Tweets Feed
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <span style="font-size: 13px; color: var(--text-muted);">Real-time stream from MongoDB</span>
+            <a href="{% url 'export_excel' %}" class="badge badge-positive" style="text-decoration: none; padding: 6px 12px; font-size: 12px; cursor: pointer;">
+                <i class="fa-solid fa-download"></i> Download Excel (.xlsx)
+            </a>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 75%;">Tweet Content</th>
+                    <th style="width: 25%; text-align: center;">Predicted Sentiment</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in data %}
+                <tr>
+                    <td style="line-height: 1.5;">
+                        <i class="fa-brands fa-twitter" style="color: var(--accent-blue); margin-right: 8px; opacity: 0.8;"></i>
+                        {{ item.tweet }}
+                    </td>
+                    <td style="text-align: center;">
+                        {% if item.prediction == 'Positive' %}
+                        <span class="badge badge-positive"><i class="fa-solid fa-arrow-trend-up"></i> Positive</span>
+                        {% elif item.prediction == 'Negative' %}
+                        <span class="badge badge-negative"><i class="fa-solid fa-arrow-trend-down"></i> Negative</span>
+                        {% else %}
+                        <span class="badge badge-neutral"><i class="fa-solid fa-minus"></i> Neutral</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Word Frequency Chart -->
+<div class="chart-card" id="word-analytics" style="margin-bottom: 30px;">
+    <div class="card-title">
+        <i class="fa-solid fa-cloud"></i> Word Frequencies by Sentiment Class
+    </div>
+    <div style="text-align: center; padding: 16px;">
+        <img src="{% static 'imgs/Word_Frequencies_for_all_classes.png' %}" alt="Word Frequency Analysis" style="max-width: 100%; height: auto; border-radius: 12px; background: #fff; padding: 12px; border: 1px solid var(--border-color);">
+    </div>
+</div>
+
+{% else %}
+
+<!-- Empty State -->
+<div class="empty-state">
+    <i class="fa-solid fa-database"></i>
+    <h2>Database Masih Kosong</h2>
+    <p>Belum ada data tweet yang tersimpan di MongoDB. Pastikan Anda sudah menjalankan <code>twitter_api_producer.py</code> dan <code>spark_structured_streaming.py</code>.</p>
+</div>
+
+{% endif %}
+
+{% endblock content %}
+
+{% block scripts %}
+<script>
+    var autoRefreshInterval;
+    var isAutoRefresh = true;
+
+    function startAutoRefresh() {
+        autoRefreshInterval = setInterval(function() {
+            window.location.reload();
+        }, 5000);
+    }
+
+    function toggleAutoRefresh() {
+        if (isAutoRefresh) {
+            clearInterval(autoRefreshInterval);
+            document.getElementById('refreshText').innerText = "Auto-Refresh (OFF)";
+            document.getElementById('refreshIcon').classList.remove('fa-spin');
+            isAutoRefresh = false;
+        } else {
+            startAutoRefresh();
+            document.getElementById('refreshText').innerText = "Auto-Refresh (ON)";
+            document.getElementById('refreshIcon').classList.add('fa-spin');
+            isAutoRefresh = true;
+        }
+    }
+
+    startAutoRefresh();
+
+    {% if len_data != 0 %}
+    var counts = {{ sentiment_counts|safe }};
+    var labels = Object.keys(counts);
+    var amounts = Object.values(counts);
+
+    var colorMap = {
+        'Positive': '#10b981',
+        'Negative': '#ef4444',
+        'Neutral': '#6366f1'
+    };
+
+    var bgColors = labels.map(function(label) {
+        return colorMap[label] || '#38bdf8';
+    });
+
+    // Doughnut Chart
+    var ctxDoughnut = document.getElementById('sentimentDoughnutChart').getContext('2d');
+    new Chart(ctxDoughnut, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: amounts,
+                backgroundColor: bgColors,
+                borderColor: '#0f172a',
+                borderWidth: 3,
+                hoverOffset: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#94a3b8',
+                        font: { family: 'Plus Jakarta Sans', size: 13, weight: 600 },
+                        padding: 16
+                    }
+                }
+            },
+            cutout: '70%'
+        }
+    });
+
+    // Bar Chart (Diagram Batang)
+    var ctxBar = document.getElementById('sentimentBarChart').getContext('2d');
+    new Chart(ctxBar, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Total Tweets',
+                data: amounts,
+                backgroundColor: bgColors,
+                borderRadius: 8,
+                borderSkipped: false,
+                barThickness: 32
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 12, weight: 600 } }
+                },
+                y: {
+                    grid: { color: 'rgba(255, 255, 255, 0.06)' },
+                    ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 12 } },
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+    {% endif %}
+</script>
+{% endblock scripts %}

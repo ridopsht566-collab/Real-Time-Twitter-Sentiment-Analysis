@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %} Text Classifier - Twitter Sentiment Analysis {% endblock title %}
+
+{% block content %}
+
+<div class="page-title-row" style="justify-content: center; text-align: center; margin-bottom: 30px;">
+    <div>
+        <h1 class="page-title">Real-Time Text Classifier</h1>
+        <p class="page-subtitle">Test real-time sentiment prediction (Positive / Neutral / Negative) on custom text</p>
+    </div>
+</div>
+
+<div class="classify-box">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <textarea placeholder="Type or paste any tweet / text here to analyze its sentiment..." name="text">{{ text }}</textarea>
+        
+        <button type="submit" class="classify-btn">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Analyze Sentiment
+        </button>
+    </form>
+
+    {% if text_len > 0 or error %}
+        <div class="result-card">
+            {% if error %}
+                <div style="color: var(--negative); display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> {{ error_text }}
+                </div>
+            {% else %}
+                <div style="margin-bottom: 12px; color: var(--text-secondary); font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;">
+                    Prediction Result
+                </div>
+                <div style="font-size: 15px; margin-bottom: 16px; color: var(--text-primary); line-height: 1.6;">
+                    <span style="color: var(--text-muted);">Text:</span> "{{ text }}"
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <span style="color: var(--text-secondary); font-weight: 600;">Sentiment:</span>
+                    {% if prediction == 'Positive' %}
+                        <span class="badge badge-positive" style="font-size: 14px; padding: 6px 16px;"><i class="fa-solid fa-face-smile"></i> Positive</span>
+                    {% elif prediction == 'Negative' %}
+                        <span class="badge badge-negative" style="font-size: 14px; padding: 6px 16px;"><i class="fa-solid fa-face-frown"></i> Negative</span>
+                    {% else %}
+                        <span class="badge badge-neutral" style="font-size: 14px; padding: 6px 16px;"><i class="fa-solid fa-face-meh"></i> Neutral</span>
+                    {% endif %}
+                </div>
+                <div style="margin-top: 16px; font-size: 13px; color: var(--positive); display: flex; align-items: center; gap: 8px; background: var(--positive-bg); padding: 8px 14px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                    <i class="fa-solid fa-circle-check"></i> Tersimpan ke MongoDB! Tweet ini sudah otomatis muncul di <strong>Live Tweets Feed</strong>.
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+{% endblock content %}

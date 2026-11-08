@@ -1,0 +1,616 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Twitter Sentiment Analysis{% endblock title %}</title>
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-main: #07090e;
+            --bg-sidebar: #0d111a;
+            --bg-card: rgba(17, 24, 39, 0.85);
+            --bg-card-hover: rgba(30, 41, 59, 0.95);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #38bdf8;
+            --accent-purple: #818cf8;
+            --positive: #10b981;
+            --positive-bg: rgba(16, 185, 129, 0.16);
+            --negative: #ef4444;
+            --negative-bg: rgba(239, 68, 68, 0.16);
+            --neutral: #6366f1;
+            --neutral-bg: rgba(99, 102, 241, 0.16);
+            --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 1px 1px rgba(255, 255, 255, 0.05);
+            --sidebar-width: 260px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.08) 0px, transparent 40%),
+                radial-gradient(at 100% 100%, rgba(129, 140, 248, 0.08) 0px, transparent 40%);
+            background-attachment: fixed;
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* ─── Sidebar ────────────────────────────────────────── */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            z-index: 1000;
+            padding: 24px 16px;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 8px 24px;
+            border-bottom: 1px solid var(--border-color);
+            text-decoration: none;
+        }
+
+        .brand-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 18px;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+        }
+
+        .brand-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1.2;
+        }
+
+        .brand-subtitle {
+            font-size: 11px;
+            color: var(--accent-blue);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .menu-section {
+            margin-top: 24px;
+            flex: 1;
+        }
+
+        .menu-category {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            padding: 8px 12px;
+            margin-bottom: 4px;
+        }
+
+        .menu-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .menu-item a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .menu-item a i {
+            font-size: 16px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .menu-item a:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .menu-item.active a {
+            color: #fff;
+            background: linear-gradient(90deg, rgba(56, 189, 248, 0.15), rgba(129, 140, 248, 0.05));
+            border-left: 3px solid var(--accent-blue);
+        }
+
+        .sidebar-footer {
+            padding: 16px 12px 0;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .system-status-box {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .status-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--positive);
+            box-shadow: 0 0 6px var(--positive);
+        }
+
+        /* ─── Main Content Area ──────────────────────────────── */
+        .content-wrapper {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .top-navbar {
+            height: 70px;
+            background: rgba(10, 14, 23, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 900;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+        }
+
+        .pipeline-tag {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .pipeline-badge {
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--accent-blue);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        main {
+            padding: 32px;
+            flex: 1;
+            max-width: 1400px;
+            width: 100%;
+        }
+
+        /* ─── Stat KPI Cards ─────────────────────────────────── */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 22px;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.18);
+        }
+
+        .kpi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .kpi-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .kpi-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 17px;
+        }
+
+        .kpi-value {
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: #fff;
+        }
+
+        .kpi-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .kpi-total .kpi-icon { background: rgba(56, 189, 248, 0.18); color: var(--accent-blue); }
+        .kpi-positive .kpi-icon { background: var(--positive-bg); color: var(--positive); }
+        .kpi-neutral .kpi-icon { background: var(--neutral-bg); color: var(--neutral); }
+        .kpi-negative .kpi-icon { background: var(--negative-bg); color: var(--negative); }
+
+        /* ─── Grid Analytics ─────────────────────────────────── */
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .card-title {
+            font-size: 17px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #fff;
+        }
+
+        .card-title i {
+            color: var(--accent-blue);
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* ─── Modern Table ────────────────────────────────────── */
+        .table-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 30px;
+        }
+
+        .table-responsive {
+            max-height: 420px;
+            overflow-y: auto;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .table-responsive::-webkit-scrollbar {
+            width: 6px;
+        }
+        .table-responsive::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        thead th {
+            position: sticky;
+            top: 0;
+            background: #141b2d;
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border-color);
+            z-index: 10;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: background 0.15s ease;
+        }
+
+        tbody tr:hover {
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        tbody td {
+            padding: 14px 18px;
+            font-size: 14px;
+            color: var(--text-primary);
+            vertical-align: middle;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-positive { background: var(--positive-bg); color: var(--positive); border: 1px solid rgba(16, 185, 129, 0.4); }
+        .badge-negative { background: var(--negative-bg); color: var(--negative); border: 1px solid rgba(239, 68, 68, 0.4); }
+        .badge-neutral  { background: var(--neutral-bg);  color: var(--neutral);  border: 1px solid rgba(99, 102, 241, 0.4); }
+
+        .live-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: var(--positive);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--positive);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--positive);
+            animation: pulse 1.8s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        /* ─── Classify Form ──────────────────────────────────── */
+        .classify-box {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .classify-box textarea {
+            width: 100%;
+            height: 180px;
+            background: rgba(10, 14, 23, 0.7);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: #fff;
+            padding: 18px;
+            font-size: 15px;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .classify-box textarea:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+        }
+
+        .classify-btn {
+            margin-top: 18px;
+            width: 100%;
+            padding: 14px;
+            border-radius: 12px;
+            border: none;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .result-card {
+            margin-top: 24px;
+            padding: 20px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-color);
+        }
+    </style>
+    
+    {% block links %}{% endblock links %}
+</head>
+<body>
+
+    <!-- ─── Left Sidebar Navigation Menu ──────────────────── -->
+    <aside class="sidebar">
+        <div>
+            <a href="{% url 'dashboard' %}" class="sidebar-brand">
+                <div class="brand-icon">
+                    <i class="fa-brands fa-x-twitter"></i>
+                </div>
+                <div>
+                    <div class="brand-title">Twitter Analytics</div>
+                    <div class="brand-subtitle">Big Data Engine</div>
+                </div>
+            </a>
+
+            <div class="menu-section">
+                <div class="menu-category">Main Menu</div>
+                <ul class="menu-list">
+                    <li class="menu-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                        <a href="{% url 'dashboard' %}">
+                            <i class="fa-solid fa-chart-pie"></i>
+                            <span>Dashboard Overview</span>
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="{% url 'dashboard' %}#live-table">
+                            <i class="fa-solid fa-bolt"></i>
+                            <span>Live Tweets Feed</span>
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="{% url 'dashboard' %}#word-analytics">
+                            <i class="fa-solid fa-cloud"></i>
+                            <span>Word Analytics</span>
+                        </a>
+                    </li>
+                    <li class="menu-item {% if request.resolver_match.url_name == 'classify' %}active{% endif %}">
+                        <a href="{% url 'classify' %}">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            <span>Text Classifier (ML)</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="menu-category" style="margin-top: 24px;">Architecture Pipeline</div>
+                <ul class="menu-list">
+                    <li class="menu-item">
+                        <a href="javascript:void(0)" style="cursor: default; opacity: 0.85;">
+                            <i class="fa-solid fa-network-wired" style="color: var(--accent-blue);"></i>
+                            <span style="font-size: 13px;">Kafka ➔ Spark ➔ Mongo</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Sidebar System Health Status -->
+        <div class="sidebar-footer">
+            <div class="system-status-box">
+                <div class="status-title">System Status</div>
+                <div class="status-item">
+                    <span>Kafka Cluster</span>
+                    <div class="status-dot"></div>
+                </div>
+                <div class="status-item">
+                    <span>PySpark Streaming</span>
+                    <div class="status-dot"></div>
+                </div>
+                <div class="status-item" style="margin-bottom: 0;">
+                    <span>MongoDB (NoSQL)</span>
+                    <div class="status-dot"></div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ─── Content Wrapper with Top Navbar ────────────────── -->
+    <div class="content-wrapper">
+        <nav class="top-navbar">
+            <div class="pipeline-tag">
+                <span class="pipeline-badge">REAL-TIME PIPELINE</span>
+                <span>Twitter Data Streaming</span>
+            </div>
+            
+            <div style="display: flex; gap: 14px; align-items: center;">
+                <div class="live-badge">
+                    <div class="pulse-dot"></div>
+                    Engine Online
+                </div>
+            </div>
+        </nav>
+
+        <main>
+            {% block content %}{% endblock content %}
+        </main>
+    </div>
+
+    {% block scripts %}{% endblock scripts %}
+</body>
+</html>
